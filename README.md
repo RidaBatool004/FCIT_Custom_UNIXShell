@@ -1,4 +1,4 @@
-# PUFCIT's custom UNIX Shell
+# FCIT's custom UNIX Shell
 
 A simple command-line interpreter (shell) built in C for an Operating Systems course.
 
