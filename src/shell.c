@@ -2,6 +2,7 @@
 
 char* read_cmd(char* prompt, FILE* fp) {
     printf("%s", prompt);
+    fflush(stdout);
     char* cmdline = (char*) malloc(sizeof(char) * MAX_LEN);
     int c, pos = 0;
 
@@ -20,7 +21,6 @@ char* read_cmd(char* prompt, FILE* fp) {
 }
 
 char** tokenize(char* cmdline) {
-    // Edge case: empty command line
     if (cmdline == NULL || cmdline[0] == '\0' || cmdline[0] == '\n') {
         return NULL;
     }
@@ -37,9 +37,8 @@ char** tokenize(char* cmdline) {
     int argnum = 0;
 
     while (*cp != '\0' && argnum < MAXARGS) {
-        while (*cp == ' ' || *cp == '\t') cp++; // Skip leading whitespace
-        
-        if (*cp == '\0') break; // Line was only whitespace
+        while (*cp == ' ' || *cp == '\t') cp++;
+        if (*cp == '\0') break;
 
         start = cp;
         len = 1;
@@ -51,7 +50,7 @@ char** tokenize(char* cmdline) {
         argnum++;
     }
 
-    if (argnum == 0) { // No arguments were parsed
+    if (argnum == 0) {
         for(int i = 0; i < MAXARGS + 1; i++) free(arglist[i]);
         free(arglist);
         return NULL;
@@ -60,3 +59,4 @@ char** tokenize(char* cmdline) {
     arglist[argnum] = NULL;
     return arglist;
 }
+
