@@ -15,7 +15,7 @@ make
 
 The compiled executable will be located in the `bin/` directory.
 ```bash
-./bin/psh
+./bin/myshell
 ```
 
 ### Clean the Project
