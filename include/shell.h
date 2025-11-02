@@ -8,6 +8,8 @@
 #include <sys/types.h>
 #include <sys/wait.h>
 #include <errno.h>
+#include <readline/readline.h>
+#include <readline/history.h>
 
 #define MAX_LEN 512
 #define MAXARGS 10
@@ -23,10 +25,11 @@ char** tokenize(char* cmdline);
 int execute(char** arglist);
 int handle_builtin(char** arglist);
 
-/* History API */
-void add_history(const char* cmd);
-void print_history(void);
-const char* get_history(int n); /* 1-based; returns NULL if out of bounds */
+/* Custom history API (renamed) */
+void add_to_history(const char* cmd);         /* add to custom history buffer */
+void show_history(void);                      /* print custom history */
+char* get_history_command(int n);             /* 1-based */
+void cleanup_history(void);
 
 #endif // SHELL_H
 
