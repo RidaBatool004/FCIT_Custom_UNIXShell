@@ -40,7 +40,7 @@ int handle_builtin(char **arglist) {
 
     // history
     if (strcmp(arglist[0], "history") == 0) {
-        print_history();
+        show_history();
         return 1;
     }
 

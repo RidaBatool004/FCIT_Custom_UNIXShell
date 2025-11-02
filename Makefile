@@ -1,36 +1,33 @@
-# Compiler and flags
+# === Configuration ===
 CC = gcc
 CFLAGS = -Wall -Wextra -Iinclude
-
-# Directories
+LDFLAGS = -lreadline
 SRC_DIR = src
 OBJ_DIR = obj
 BIN_DIR = bin
-
-# Files
-SRCS = $(wildcard $(SRC_DIR)/*.c)
-OBJS = $(patsubst $(SRC_DIR)/%.c,$(OBJ_DIR)/%.o,$(SRCS))
 TARGET = $(BIN_DIR)/myshell
 
-# Default target
+# === Source and Object Files ===
+SRC = $(SRC_DIR)/builtins.c $(SRC_DIR)/execute.c $(SRC_DIR)/history.c $(SRC_DIR)/main.c $(SRC_DIR)/shell.c
+OBJ = $(OBJ_DIR)/builtins.o $(OBJ_DIR)/execute.o $(OBJ_DIR)/history.o $(OBJ_DIR)/main.o $(OBJ_DIR)/shell.o
+
+# === Rules ===
 all: $(TARGET)
 
-# Linking the final executable
-$(TARGET): $(OBJS)
+$(TARGET): $(OBJ)
 	@mkdir -p $(BIN_DIR)
-	$(CC) $(CFLAGS) $^ -o $@
+	$(CC) $(OBJ) -o $(TARGET) $(LDFLAGS)
+	@echo " Build complete: $(TARGET)"
 
-# Compiling each .c into .o
-$(OBJ_DIR)/%.o: $(SRC_DIR)/%.c include/shell.h
+$(OBJ_DIR)/%.o: $(SRC_DIR)/%.c
 	@mkdir -p $(OBJ_DIR)
 	$(CC) $(CFLAGS) -c $< -o $@
 
-# Clean build files
+# === Utility Targets ===
 clean:
 	rm -rf $(OBJ_DIR) $(BIN_DIR)
+	@echo "Cleaned build files."
 
-# Run the shell
-run: all
-	./$(TARGET)
+rebuild: clean all
 
 .PHONY: all clean run 

@@ -18,7 +18,7 @@ int main() {
     char** arglist = NULL;
 
     while ((cmdline = read_cmd(PROMPT, stdin)) != NULL) {
-        /* make a local modifiable copy */
+        /* skip empty allocation */
         if (cmdline[0] == '\0') {
             free(cmdline);
             continue;
@@ -27,12 +27,9 @@ int main() {
         /* Trim leading whitespace */
         char* trimmed = ltrim(cmdline);
 
-        /* Handle EOF (Ctrl+D) case already in read_cmd: cmdline==NULL handled above */
-
         /* Special case: !n (re-execution)
            Must be handled BEFORE tokenization and BEFORE adding to history.
         */
-//        int handled_exclamation = 0;
         if (trimmed[0] == '!') {
             char *numstr = trimmed + 1;
             if (*numstr == '\0') {
@@ -46,7 +43,7 @@ int main() {
                 free(cmdline);
                 continue;
             }
-            const char* histcmd = get_history(n);
+            char* histcmd = get_history_command(n); /* custom history lookup */
             if (histcmd == NULL) {
                 fprintf(stderr, "No such command in history: %d\n", n);
                 free(cmdline);
@@ -61,7 +58,6 @@ int main() {
             }
             /* Ensure newline trimmed */
             rstrip_newline(cmdline);
-//            handled_exclamation = 1; /* indicates cmdline now holds the resolved command 
             trimmed = cmdline;
         } else {
             /* remove trailing newline if any */
@@ -73,8 +69,11 @@ int main() {
             }
         }
 
-        /* Now add the resolved command to history (we add actual executed command) */
-        add_history(trimmed);
+        /* Add to Readline history (enables arrow-key navigation) */
+        add_history(cmdline);       /* readline library function */
+
+        /* Add to custom fixed-size history buffer */
+        add_to_history(cmdline);    /* your 20-entry circular buffer */
 
         /* Tokenize */
         arglist = tokenize(trimmed);
@@ -99,4 +98,5 @@ int main() {
     printf("\nShell exited.\n");
     return 0;
 }
+
 

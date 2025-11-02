@@ -1,25 +1,53 @@
+/* src/shell.c */
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <readline/readline.h>
+#include <readline/history.h>
 #include "shell.h"
 
-char* read_cmd(char* prompt, FILE* fp) {
-    printf("%s", prompt);
-    fflush(stdout);
-    char* cmdline = (char*) malloc(sizeof(char) * MAX_LEN);
-    int c, pos = 0;
+// built-in commands for completion
+const char* builtins[] = {"cd", "help", "exit", "history", "jobs", NULL};
 
-    while ((c = getc(fp)) != EOF) {
-        if (c == '\n') break;
-        cmdline[pos++] = c;
-    }
+char* command_generator(const char* text, int state) {
+    static int list_index;
+    const char* name;
 
-    if (c == EOF && pos == 0) {
-        free(cmdline);
-        return NULL; // Handle Ctrl+D
+    if (!state)
+        list_index = 0;
+
+    while ((name = builtins[list_index++])) {
+        if (strncmp(name, text, strlen(text)) == 0)
+            return strdup(name);
     }
-    
-    cmdline[pos] = '\0';
-    return cmdline;
+    return NULL;
 }
 
+char** my_completion(const char* text, int start, int end) {
+    (void)start; (void)end;
+    // Only complete the first word (command)
+    if (start == 0)
+        return rl_completion_matches(text, command_generator);
+    else
+        return NULL;
+}
+
+char* read_cmd(char* prompt, FILE* fp) {
+    (void)fp;
+    rl_attempted_completion_function = my_completion;
+
+    char* cmdline = readline(prompt);  // Readline handles editing & arrow keys
+    if (!cmdline) {
+        printf("\n");
+        return NULL;
+    }
+
+    // DO NOT call a custom add_history here (that would collide with Readline symbol).
+    // We'll add to Readline history and custom history in main(), once the command is validated.
+
+    return cmdline;
+}
+// Tokenizer (unchanged from before)
 char** tokenize(char* cmdline) {
     if (cmdline == NULL || cmdline[0] == '\0' || cmdline[0] == '\n') {
         return NULL;
@@ -59,4 +87,5 @@ char** tokenize(char* cmdline) {
     arglist[argnum] = NULL;
     return arglist;
 }
+
 

@@ -1,40 +1,55 @@
+/* src/history.c */
 #include "shell.h"
+#include <string.h>
+#include <stdlib.h>
+#include <stdio.h>
 
-/* Circular buffer implementation for history */
-static char* history[HISTORY_SIZE];
-static int history_start = 0;  /* index of oldest entry */
-static int history_count = 0;  /* number of entries currently stored */
+#define HISTORY_SIZE 20
 
-/* Add a command to history (makes a copy) */
-void add_history(const char* cmd) {
-    if (!cmd) return;
+static char* hist_buf[HISTORY_SIZE];
+static int hist_start = 0;
+static int hist_count = 0;
+
+/* Add command to custom history (20-entry circular buffer) */
+void add_to_history(const char* cmd) {
+    if (!cmd || *cmd == '\0') return;
     char *copy = strdup(cmd);
-    if (!copy) return; /* allocation failed, silently return */
+    if (!copy) return;
 
-    if (history_count < HISTORY_SIZE) {
-        int idx = (history_start + history_count) % HISTORY_SIZE;
-        history[idx] = copy;
-        history_count++;
+    if (hist_count < HISTORY_SIZE) {
+        int idx = (hist_start + hist_count) % HISTORY_SIZE;
+        hist_buf[idx] = copy;
+        hist_count++;
     } else {
-        /* overwrite oldest */
-        free(history[history_start]);
-        history[history_start] = copy;
-        history_start = (history_start + 1) % HISTORY_SIZE;
+        free(hist_buf[hist_start]);
+        hist_buf[hist_start] = copy;
+        hist_start = (hist_start + 1) % HISTORY_SIZE;
     }
 }
 
-/* Print history lines numbered 1..history_count */
-void print_history(void) {
-    for (int i = 0; i < history_count; ++i) {
-        int idx = (history_start + i) % HISTORY_SIZE;
-        printf("%d  %s\n", i + 1, history[idx]);
+/* Show custom history numbered 1..n */
+void show_history(void) {
+    for (int i = 0; i < hist_count; ++i) {
+        int idx = (hist_start + i) % HISTORY_SIZE;
+        printf("%d  %s\n", i + 1, hist_buf[idx]);
     }
 }
 
-/* Return the nth command (1-based) or NULL if invalid */
-const char* get_history(int n) {
-    if (n < 1 || n > history_count) return NULL;
-    int idx = (history_start + (n - 1)) % HISTORY_SIZE;
-    return history[idx];
+/* Return nth command (1-based) or NULL */
+char* get_history_command(int n) {
+    if (n < 1 || n > hist_count) return NULL;
+    int idx = (hist_start + (n - 1)) % HISTORY_SIZE;
+    return hist_buf[idx];
+}
+
+/* Free buffer at exit */
+void cleanup_history(void) {
+    for (int i = 0; i < hist_count; ++i) {
+        int idx = (hist_start + i) % HISTORY_SIZE;
+        free(hist_buf[idx]);
+        hist_buf[idx] = NULL;
+    }
+    hist_count = 0;
+    hist_start = 0;
 }
 
