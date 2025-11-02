@@ -1,8 +1,8 @@
 #include "shell.h"
 
 int handle_builtin(char **arglist) {
-    if (arglist[0] == NULL)
-        return 1; // Empty command handled
+    if (arglist == NULL || arglist[0] == NULL)
+        return 1; // empty input considered handled
 
     // exit
     if (strcmp(arglist[0], "exit") == 0) {
@@ -26,7 +26,9 @@ int handle_builtin(char **arglist) {
         printf("  cd <dir>   - Change current directory\n");
         printf("  help       - Show help message\n");
         printf("  exit       - Exit the shell\n");
-        printf("  jobs       - Display job status (not implemented)\n\n");
+        printf("  jobs       - Display job status (not implemented)\n");
+        printf("  history    - Show recent commands\n");
+        printf("  !n         - Re-execute nth command from history\n\n");
         return 1;
     }
 
@@ -36,6 +38,12 @@ int handle_builtin(char **arglist) {
         return 1;
     }
 
-    return 0; // Not a built-in → external command
+    // history
+    if (strcmp(arglist[0], "history") == 0) {
+        print_history();
+        return 1;
+    }
+
+    return 0; // not a builtin
 }
 
