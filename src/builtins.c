@@ -26,15 +26,15 @@ int handle_builtin(char **arglist) {
         printf("  cd <dir>   - Change current directory\n");
         printf("  help       - Show help message\n");
         printf("  exit       - Exit the shell\n");
-        printf("  jobs       - Display job status (not implemented)\n");
+        printf("  jobs       - Display active background jobs\n");
         printf("  history    - Show recent commands\n");
         printf("  !n         - Re-execute nth command from history\n\n");
         return 1;
     }
 
-    // jobs
+    // jobs (updated)
     if (strcmp(arglist[0], "jobs") == 0) {
-        printf("Job control not yet implemented.\n");
+        show_jobs();   // Now uses your real job tracking
         return 1;
     }
 

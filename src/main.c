@@ -13,23 +13,31 @@ static void rstrip_newline(char* s) {
     if (s[len - 1] == '\n') s[len - 1] = '\0';
 }
 
+/* Helper: trim trailing spaces */
+static void rtrim_spaces(char* s) {
+    size_t len = strlen(s);
+    while (len > 0 && (s[len - 1] == ' ' || s[len - 1] == '\t')) {
+        s[--len] = '\0';
+    }
+}
+
 int main() {
     char* cmdline = NULL;
     char** arglist = NULL;
 
     while ((cmdline = read_cmd(PROMPT, stdin)) != NULL) {
-        /* skip empty allocation */
+
+        /* Reap any finished background jobs */
+        reap_terminated_jobs();
+
         if (cmdline[0] == '\0') {
             free(cmdline);
             continue;
         }
 
-        /* Trim leading whitespace */
         char* trimmed = ltrim(cmdline);
 
-        /* Special case: !n (re-execution)
-           Must be handled BEFORE tokenization and BEFORE adding to history.
-        */
+        /* Handle history re-execution (!n) BEFORE tokenizing */
         if (trimmed[0] == '!') {
             char *numstr = trimmed + 1;
             if (*numstr == '\0') {
@@ -43,52 +51,55 @@ int main() {
                 free(cmdline);
                 continue;
             }
-            char* histcmd = get_history_command(n); /* custom history lookup */
+            char* histcmd = get_history_command(n);
             if (histcmd == NULL) {
                 fprintf(stderr, "No such command in history: %d\n", n);
                 free(cmdline);
                 continue;
             }
-            /* Replace cmdline with a copy of histcmd */
             free(cmdline);
             cmdline = strdup(histcmd);
             if (!cmdline) {
                 perror("strdup");
                 continue;
             }
-            /* Ensure newline trimmed */
             rstrip_newline(cmdline);
             trimmed = cmdline;
         } else {
-            /* remove trailing newline if any */
             rstrip_newline(trimmed);
-            /* If user typed whitespace-only, ignore */
+            rtrim_spaces(trimmed);
             if (trimmed[0] == '\0') {
                 free(cmdline);
                 continue;
             }
         }
 
-        /* Add to Readline history (enables arrow-key navigation) */
-        add_history(cmdline);       /* readline library function */
+        /* Add to both readline and custom history */
+        add_history(cmdline);
+        add_to_history(cmdline);
 
-        /* Add to custom fixed-size history buffer */
-        add_to_history(cmdline);    /* your 20-entry circular buffer */
+        /* NEW: handle multiple commands separated by ';' */
+        char* command = strtok(trimmed, ";");
+        while (command != NULL) {
+            command = ltrim(command);
+            rtrim_spaces(command);
 
-        /* Tokenize */
-        arglist = tokenize(trimmed);
-        if (arglist != NULL) {
-            /* Check built-ins before forking */
-            if (!handle_builtin(arglist)) {
-                execute(arglist);
+            if (strlen(command) > 0) {
+                arglist = tokenize(command);
+                if (arglist != NULL) {
+                    if (!handle_builtin(arglist)) {
+                        execute(arglist);
+                    }
+
+                    /* Free tokenized args */
+                    for (int i = 0; arglist[i] != NULL; i++)
+                        free(arglist[i]);
+                    free(arglist);
+                    arglist = NULL;
+                }
             }
 
-            /* Free tokens allocated by tokenize() */
-            for (int i = 0; arglist[i] != NULL; i++) {
-                free(arglist[i]);
-            }
-            free(arglist);
-            arglist = NULL;
+            command = strtok(NULL, ";");
         }
 
         free(cmdline);
@@ -98,5 +109,6 @@ int main() {
     printf("\nShell exited.\n");
     return 0;
 }
+
 
 

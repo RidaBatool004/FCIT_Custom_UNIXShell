@@ -48,7 +48,7 @@ char* read_cmd(char* prompt, FILE* fp) {
     return cmdline;
 }
 
-/* Tokenizer supporting <, >, and | */
+/* Tokenizer supporting <, >, |, ;, and & */
 char** tokenize(char* cmdline) {
     if (cmdline == NULL || *cmdline == '\0') return NULL;
 
@@ -64,8 +64,8 @@ char** tokenize(char* cmdline) {
         while (*cp == ' ' || *cp == '\t') cp++;
         if (*cp == '\0') break;
 
-        /* treat <, >, | as separate tokens */
-        if (*cp == '<' || *cp == '>' || *cp == '|') {
+        /* treat <, >, |, ;, & as separate tokens */
+        if (*cp == '<' || *cp == '>' || *cp == '|' || *cp == ';' || *cp == '&') {
             arglist[argnum][0] = *cp;
             arglist[argnum][1] = '\0';
             argnum++;
@@ -75,7 +75,9 @@ char** tokenize(char* cmdline) {
 
         /* normal word token */
         int len = 0;
-        while (*cp != '\0' && *cp != ' ' && *cp != '\t' && *cp != '<' && *cp != '>' && *cp != '|') {
+        while (*cp != '\0' && *cp != ' ' && *cp != '\t' &&
+               *cp != '<' && *cp != '>' && *cp != '|' &&
+               *cp != ';' && *cp != '&') {
             arglist[argnum][len++] = *cp++;
         }
         arglist[argnum][len] = '\0';
@@ -90,6 +92,5 @@ char** tokenize(char* cmdline) {
     }
     return arglist;
 }
-
 
 
