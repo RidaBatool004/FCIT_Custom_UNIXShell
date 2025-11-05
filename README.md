@@ -29,6 +29,6 @@ make clean
 
 *   `/src`: All C source code files (`.c`).
 *   `/include`: All header files (`.h`).
-*   `/bin`: Contains the final compiled executable (`psh`).
+*   `/bin`: Contains the final compiled executable (`myshell`).
 *   `/obj`: Contains intermediate object files (`.o`) created during compilation.
 *   `Makefile`: The build script for the project.
