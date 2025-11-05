@@ -50,5 +50,9 @@ void add_job(pid_t pid, const char *cmd);
 void reap_terminated_jobs(void);
 void show_jobs(void);
 
+/* ---- If-Then-Else Control ---- */
+void handle_if_structure(void);
+
+
 #endif // SHELL_H
 
