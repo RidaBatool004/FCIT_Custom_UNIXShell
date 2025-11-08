@@ -19,7 +19,7 @@ void reap_terminated_jobs() {
         pid = waitpid(jobs[i].pid, &status, WNOHANG);
         if (pid > 0) {
             printf("[+] Background job finished: %s (PID: %d)\n", jobs[i].cmd, jobs[i].pid);
-            // Remove finished job
+            // remove finished job
             for (int j = i; j < job_count - 1; j++)
                 jobs[j] = jobs[j + 1];
             job_count--;
@@ -43,7 +43,6 @@ void show_jobs() {
 int execute(char *arglist[]) {
     int in_redirect = -1, out_redirect = -1, pipe_pos = -1, background = 0;
 
-    // Identify operators
     for (int i = 0; arglist[i] != NULL; i++) {
         if (strcmp(arglist[i], "<") == 0) in_redirect = i;
         else if (strcmp(arglist[i], ">") == 0) out_redirect = i;
@@ -54,7 +53,7 @@ int execute(char *arglist[]) {
         }
     }
 
-    // PIPE HANDLING
+    // PIPE handling
     if (pipe_pos != -1) {
         arglist[pipe_pos] = NULL;
         char **left_cmd = arglist;
@@ -100,7 +99,7 @@ int execute(char *arglist[]) {
         return 0;
     }
 
-    // REDIRECTION HANDLING
+    // Redirection handling
     int in_fd = -1, out_fd = -1;
     if (in_redirect != -1) {
         in_fd = open(arglist[in_redirect + 1], O_RDONLY);
@@ -114,23 +113,30 @@ int execute(char *arglist[]) {
         arglist[out_redirect] = NULL;
     }
 
-    // EXECUTION
+    // Execution
     pid_t pid = fork();
     if (pid == 0) {
         if (in_fd != -1) { dup2(in_fd, STDIN_FILENO); close(in_fd); }
         if (out_fd != -1) { dup2(out_fd, STDOUT_FILENO); close(out_fd); }
         execvp(arglist[0], arglist);
         perror("execvp");
-        exit(1);
-    } else if (pid > 0) {
+        exit(127); // return 127 if command not found
+    } 
+    else if (pid > 0) {
+        int status = 0;
         if (background) {
             printf("[+] Running in background: PID %d\n", pid);
             add_job(pid, arglist[0]);
+            return 0;
         } else {
-            waitpid(pid, NULL, 0);
+            waitpid(pid, &status, 0);
+            if (WIFEXITED(status))
+                return WEXITSTATUS(status);
         }
-    } else {
+    } 
+    else {
         perror("fork");
+        return 1;
     }
 
     if (in_fd != -1) close(in_fd);
@@ -138,5 +144,93 @@ int execute(char *arglist[]) {
 
     return 0;
 }
+int execute_with_status(char *arglist[], int *exit_status) {
+    if (!arglist || !arglist[0]) {
+        if (exit_status) *exit_status = 1;
+        return 1;
+    }
 
+    int in_redirect = -1, out_redirect = -1, pipe_pos = -1;
+
+    // detect <, >, | 
+    for (int i = 0; arglist[i] != NULL; i++) {
+        if (strcmp(arglist[i], "<") == 0) in_redirect = i;
+        else if (strcmp(arglist[i], ">") == 0) out_redirect = i;
+        else if (strcmp(arglist[i], "|") == 0) pipe_pos = i;
+    }
+
+    // Handle simple pipe (no background for conditions)
+    if (pipe_pos != -1) {
+        arglist[pipe_pos] = NULL;
+        char **left_cmd = arglist;
+        char **right_cmd = &arglist[pipe_pos + 1];
+
+        int fds[2];
+        if (pipe(fds) == -1) {
+            if (exit_status) *exit_status = 1;
+            return 1;
+        }
+
+        pid_t left_pid = fork();
+        if (left_pid == 0) {
+            close(fds[0]);
+            dup2(fds[1], STDOUT_FILENO);
+            close(fds[1]);
+            execvp(left_cmd[0], left_cmd);
+            _exit(127);
+        }
+
+        pid_t right_pid = fork();
+        if (right_pid == 0) {
+            close(fds[1]);
+            dup2(fds[0], STDIN_FILENO);
+            close(fds[0]);
+            execvp(right_cmd[0], right_cmd);
+            _exit(127);
+        }
+
+        close(fds[0]);
+        close(fds[1]);
+        int status = 0;
+        waitpid(left_pid, &status, 0);
+        waitpid(right_pid, &status, 0);
+        if (exit_status)
+            *exit_status = (WIFEXITED(status) ? WEXITSTATUS(status) : 1);
+        return *exit_status;
+    }
+
+    // handle redirection
+    int in_fd = -1, out_fd = -1;
+    if (in_redirect != -1) {
+        in_fd = open(arglist[in_redirect + 1], O_RDONLY);
+        if (in_fd < 0) { if (exit_status) *exit_status = 1; return 1; }
+        arglist[in_redirect] = NULL;
+    }
+    if (out_redirect != -1) {
+        out_fd = open(arglist[out_redirect + 1], O_WRONLY | O_CREAT | O_TRUNC, 0644);
+        if (out_fd < 0) { if (exit_status) *exit_status = 1; return 1; }
+        arglist[out_redirect] = NULL;
+    }
+
+    pid_t pid = fork();
+    if (pid == 0) {
+        if (in_fd != -1) { dup2(in_fd, STDIN_FILENO); close(in_fd); }
+        if (out_fd != -1) { dup2(out_fd, STDOUT_FILENO); close(out_fd); }
+        execvp(arglist[0], arglist);
+        _exit(127);
+    } else if (pid > 0) {
+        int status = 0;
+        waitpid(pid, &status, 0);
+        if (exit_status)
+            *exit_status = (WIFEXITED(status) ? WEXITSTATUS(status) : 1);
+    } else {
+        if (exit_status) *exit_status = 1;
+        return 1;
+    }
+
+    if (in_fd != -1) close(in_fd);
+    if (out_fd != -1) close(out_fd);
+
+    return (exit_status ? *exit_status : 0);
+}
 

@@ -1,0 +1,10 @@
+total 32
+drwxrwxr-x 2 rida rida 4096 Nov  8 01:13 bin
+-rw-r--r-- 1 rida rida    0 Nov  8 01:23 file_lst.txt
+-rw-rw-r-- 1 rida rida  345 Nov  3 11:36 files.txt
+-rw-rw-r-- 1 rida rida   10 Nov  4 11:11 greet.txt
+drwxrwxr-x 2 rida rida 4096 Nov  8 00:13 include
+-rw-rw-r-- 1 rida rida  774 Nov  2 07:45 Makefile
+drwxrwxr-x 2 rida rida 4096 Nov  8 01:13 obj
+-rw-rw-r-- 1 rida rida  739 Nov  2 07:44 README.md
+drwxrwxr-x 2 rida rida 4096 Nov  8 01:13 src
