@@ -27,6 +27,7 @@ char** tokenize(char* cmdline);
 
 /* ---- Execution ---- */
 int execute(char** arglist);
+int execute_with_status(char **arglist, int *exit_status);
 
 /* ---- Built-in Commands ---- */
 int handle_builtin(char** arglist);
@@ -51,8 +52,7 @@ void reap_terminated_jobs(void);
 void show_jobs(void);
 
 /* ---- If-Then-Else Control ---- */
-void handle_if_structure(void);
-
+void handle_if_structure(char *initial_line);
 
 #endif // SHELL_H
 
