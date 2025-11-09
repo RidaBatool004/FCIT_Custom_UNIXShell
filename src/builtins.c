@@ -44,6 +44,12 @@ int handle_builtin(char **arglist) {
         return 1;
     }
 
+    // set (print variables)
+    if (strcmp(arglist[0], "set") == 0) {
+        print_variables();
+        return 1;
+    }
+
     return 0; // not a builtin
 }
 
