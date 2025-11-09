@@ -8,8 +8,8 @@ BIN_DIR = bin
 TARGET = $(BIN_DIR)/myshell
 
 # === Source and Object Files ===
-SRC = $(SRC_DIR)/builtins.c $(SRC_DIR)/execute.c $(SRC_DIR)/history.c $(SRC_DIR)/main.c $(SRC_DIR)/shell.c
-OBJ = $(OBJ_DIR)/builtins.o $(OBJ_DIR)/execute.o $(OBJ_DIR)/history.o $(OBJ_DIR)/main.o $(OBJ_DIR)/shell.o
+SRC = $(SRC_DIR)/builtins.c $(SRC_DIR)/execute.c $(SRC_DIR)/history.c $(SRC_DIR)/main.c $(SRC_DIR)/shell.c $(SRC_DIR)/vars.c
+OBJ = $(OBJ_DIR)/builtins.o $(OBJ_DIR)/execute.o $(OBJ_DIR)/history.o $(OBJ_DIR)/main.o $(OBJ_DIR)/shell.o $(OBJ_DIR)/vars.o
 
 # === Rules ===
 all: $(TARGET)
