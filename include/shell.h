@@ -54,5 +54,18 @@ void show_jobs(void);
 /* ---- If-Then-Else Control ---- */
 void handle_if_structure(char *initial_line);
 
+/* ---- Variables (Feature-8) ---- */
+/* Simple shell variables (VARNAME -> value) */
+void set_variable(const char *name, const char *value);
+const char* get_variable(const char *name); /* returns NULL if not found (do not free) */
+void print_variables(void);
+void free_variables(void);
+
+/* Expand $VARNAME occurrences in an already-tokenized arglist.
+   It replaces tokens that begin with '$' with the variable value (or empty string).
+   The function will `free()` the old token and allocate a new one via strdup().
+*/
+void expand_arglist(char **arglist);
+
 #endif // SHELL_H
 
