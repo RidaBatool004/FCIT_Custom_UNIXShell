@@ -1,20 +1,19 @@
 /* src/main.c */
 #include "shell.h"
 
-/* Helper: trim leading spaces */
+/* ---------- Helper functions ---------- */
+
 static char* ltrim(char* s) {
     while (*s && (*s == ' ' || *s == '\t' || *s == '\r' || *s == '\n')) s++;
     return s;
 }
 
-/* Helper: trim trailing newline */
 static void rstrip_newline(char* s) {
     size_t len = strlen(s);
     if (len == 0) return;
     if (s[len - 1] == '\n') s[len - 1] = '\0';
 }
 
-/* Helper: trim trailing spaces */
 static void rtrim_spaces(char* s) {
     size_t len = strlen(s);
     while (len > 0 && (s[len - 1] == ' ' || s[len - 1] == '\t')) {
@@ -22,11 +21,29 @@ static void rtrim_spaces(char* s) {
     }
 }
 
-/*
- * handle_if_structure:
- *   initial_line: the string after the "if" token on the same input line.
- *                 may be empty (""), in which case we prompt for the condition.
- */
+/* --- Feature-8 helpers --- */
+static int is_assignment(const char *tok) {
+    if (!tok) return 0;
+    const char *eq = strchr(tok, '=');
+    if (!eq) return 0;
+    if (eq == tok) return 0; /* = at start invalid */
+    return 1;
+}
+
+static void parse_assignment(const char *tok, char **pname, char **pvalue) {
+    const char *eq = strchr(tok, '=');
+    if (!eq) { *pname = NULL; *pvalue = NULL; return; }
+    size_t nlen = eq - tok;
+    *pname = strndup(tok, nlen);
+    const char *val = eq + 1;
+    if ((val[0] == '"' || val[0] == '\'') && val[strlen(val) - 1] == val[0] && strlen(val) >= 2) {
+        *pvalue = strndup(val + 1, strlen(val) - 2);
+    } else {
+        *pvalue = strdup(val);
+    }
+}
+
+/* ---------- if-then-else handler ---------- */
 void handle_if_structure(char *initial_line) {
     char *cond_line = NULL;
     char *line = NULL;
@@ -38,11 +55,9 @@ void handle_if_structure(char *initial_line) {
     int then_count = 0, else_count = 0;
     int in_else = 0;
 
-    /* 1) Determine the condition line: either from initial_line or prompt */
     if (initial_line && strlen(initial_line) > 0) {
         cond_line = strdup(initial_line);
     } else {
-        /* prompt for condition */
         printf("if> ");
         read = getline(&line, &len, stdin);
         if (read <= 0) { free(line); return; }
@@ -61,14 +76,12 @@ void handle_if_structure(char *initial_line) {
         return;
     }
 
-    /* 2) Read the then/else/fi block lines */
     while (1) {
         printf("if> ");
         read = getline(&line, &len, stdin);
         if (read <= 0) break;
         line[strcspn(line, "\n")] = '\0';
 
-        /* skip empty lines */
         char *trim = ltrim(line);
         rtrim_spaces(trim);
         if (strlen(trim) == 0) continue;
@@ -88,15 +101,11 @@ void handle_if_structure(char *initial_line) {
     then_cmds[then_count] = NULL;
     else_cmds[else_count] = NULL;
 
-    /* 3) Evaluate condition quietly (suppress its stdout/stderr) using execute_with_status */
     int exit_code = 1;
     char **cond_args = tokenize(cond_line);
     if (cond_args && cond_args[0]) {
-        /* Save stdout/stderr */
         int saved_out = dup(STDOUT_FILENO);
         int saved_err = dup(STDERR_FILENO);
-
-        /* Redirect both to /dev/null */
         int devnull = open("/dev/null", O_WRONLY);
         if (devnull != -1) {
             dup2(devnull, STDOUT_FILENO);
@@ -104,10 +113,8 @@ void handle_if_structure(char *initial_line) {
             close(devnull);
         }
 
-        /* execute_with_status should set exit_code appropriately */
         execute_with_status(cond_args, &exit_code);
 
-        /* Restore stdout/stderr */
         if (saved_out != -1) { dup2(saved_out, STDOUT_FILENO); close(saved_out); }
         if (saved_err != -1) { dup2(saved_err, STDERR_FILENO); close(saved_err); }
     } else {
@@ -115,14 +122,12 @@ void handle_if_structure(char *initial_line) {
         exit_code = 1;
     }
 
-    /* free cond_args */
     if (cond_args) {
         for (int i = 0; cond_args[i]; ++i) free(cond_args[i]);
         free(cond_args);
     }
     free(cond_line);
 
-    /* 4) Execute selected block */
     char **selected_cmds = (exit_code == 0) ? then_cmds : else_cmds;
     int selected_count = (exit_code == 0) ? then_count : else_count;
 
@@ -132,7 +137,6 @@ void handle_if_structure(char *initial_line) {
         rtrim_spaces(cmd);
         if (strlen(cmd) == 0) continue;
 
-        /* support chaining in a line inside the block (e.g., "echo a ; echo b") */
         char *saveptr = NULL;
         char *piece = strtok_r(cmd, ";", &saveptr);
         while (piece) {
@@ -141,6 +145,7 @@ void handle_if_structure(char *initial_line) {
             if (strlen(ptrim) > 0) {
                 char **args = tokenize(ptrim);
                 if (args) {
+                    expand_arglist(args);
                     if (!handle_builtin(args)) {
                         execute(args);
                     }
@@ -152,38 +157,32 @@ void handle_if_structure(char *initial_line) {
         }
     }
 
-    /* cleanup */
     for (int i = 0; i < then_count; ++i) free(then_cmds[i]);
     for (int i = 0; i < else_count; ++i) free(else_cmds[i]);
     free(line);
 }
- 
+
+/* ---------- main shell loop ---------- */
 int main() {
-    char* cmdline = NULL;
-    char** arglist = NULL;
+    char *cmdline = NULL;
+    char **arglist = NULL;
 
     while ((cmdline = read_cmd(PROMPT, stdin)) != NULL) {
-
         reap_terminated_jobs();
 
-        if (cmdline[0] == '\0') {
-            free(cmdline);
-            continue;
-        }
+        if (cmdline[0] == '\0') { free(cmdline); continue; }
 
-        char* trimmed = ltrim(cmdline);
+        char *trimmed = ltrim(cmdline);
         rstrip_newline(trimmed);
         rtrim_spaces(trimmed);
         if (trimmed[0] == '\0') { free(cmdline); continue; }
 
-        /* Handle !n BEFORE tokenizing */
         if (trimmed[0] == '!') {
             int n = atoi(trimmed + 1);
-            char* histcmd = get_history_command(n);
+            char *histcmd = get_history_command(n);
             if (histcmd) {
                 free(cmdline);
                 cmdline = strdup(histcmd);
-                if (!cmdline) { perror("strdup"); continue; }
                 trimmed = cmdline;
             } else {
                 fprintf(stderr, "No such command in history: %d\n", n);
@@ -192,22 +191,18 @@ int main() {
             }
         }
 
-        /* Add to readline + custom history */
         add_history(cmdline);
         add_to_history(cmdline);
 
-        /* If-block handling: pass the rest of the line after "if" as initial condition */
         if (strncmp(trimmed, "if", 2) == 0 && (trimmed[2] == ' ' || trimmed[2] == '\0')) {
-            /* capture rest after 'if' */
             char *after = trimmed + 2;
             while (*after == ' ' || *after == '\t') after++;
-            /* call handler with the rest (may be empty) */
             handle_if_structure(after);
             free(cmdline);
             continue;
         }
 
-        /* Support multiple commands separated by ';' on a single line */
+        /* Support multiple commands separated by ';' */
         char *saveptr = NULL;
         char *command = strtok_r(trimmed, ";", &saveptr);
         while (command) {
@@ -215,13 +210,27 @@ int main() {
             rtrim_spaces(c);
             if (strlen(c) > 0) {
                 arglist = tokenize(c);
-                if (arglist) {
-                    if (!handle_builtin(arglist))
+                if (!arglist) { command = strtok_r(NULL, ";", &saveptr); continue; }
+
+                /* --- Feature 8: Variable assignment --- */
+                if (arglist[0] && is_assignment(arglist[0]) && arglist[1] == NULL) {
+                    char *name = NULL, *value = NULL;
+                    parse_assignment(arglist[0], &name, &value);
+                    if (name) set_variable(name, value ? value : "");
+                    free(name);
+                    free(value);
+                } else {
+                    /* --- Expand variables ($VAR) before execution --- */
+                    expand_arglist(arglist);
+
+                    if (!handle_builtin(arglist)) {
                         execute(arglist);
-                    for (int i = 0; arglist[i]; ++i) free(arglist[i]);
-                    free(arglist);
-                    arglist = NULL;
+                    }
                 }
+
+                for (int i = 0; arglist[i]; ++i) free(arglist[i]);
+                free(arglist);
+                arglist = NULL;
             }
             command = strtok_r(NULL, ";", &saveptr);
         }
@@ -230,6 +239,7 @@ int main() {
         cmdline = NULL;
     }
 
+    free_variables();
     printf("\nShell exited.\n");
     return 0;
 }
