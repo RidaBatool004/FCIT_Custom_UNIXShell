@@ -28,6 +28,7 @@ int handle_builtin(char **arglist) {
         printf("  exit       - Exit the shell\n");
         printf("  jobs       - Display active background jobs\n");
         printf("  history    - Show recent commands\n");
+	printf("  set        - Display all stored shell variables\n");
         printf("  !n         - Re-execute nth command from history\n\n");
         return 1;
     }
